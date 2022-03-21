@@ -998,12 +998,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 			player.destroy();
 			return;
 		}
-		if (toEliminate in this.playerTable) {
-			this.dead[toEliminate] = this.playerTable[toEliminate];
-		} else {
-			this.playerCount++; // so that the playercount decrement later isn't unnecessary
-		}
-
+		if (toEliminate in this.playerTable) this.dead[toEliminate] = this.playerTable[toEliminate];
 		const player = this.dead[toEliminate];
 		let msg = `${player.safeName}`;
 		switch (ability) {
