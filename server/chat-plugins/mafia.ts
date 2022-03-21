@@ -100,8 +100,14 @@ const VALID_IMAGES = [
 let MafiaData: MafiaData = Object.create(null);
 let logs: MafiaLog = {leaderboard: {}, mvps: {}, hosts: {}, plays: {}, leavers: {}};
 
-Punishments.addRoomPunishmentType('MAFIAGAMEBAN', 'banned from playing mafia games');
-Punishments.addRoomPunishmentType('MAFIAHOSTBAN', 'banned from hosting mafia games');
+Punishments.addRoomPunishmentType({
+	type: 'MAFIAGAMEBAN',
+	desc: 'banned from playing mafia games',
+});
+Punishments.addRoomPunishmentType({
+	type: 'MAFIAHOSTBAN',
+	desc: 'banned from hosting mafia games',
+});
 
 const hostQueue: ID[] = [];
 
@@ -166,8 +172,7 @@ for (const section of tables) {
 }
 writeFile(LOGS_FILE, logs);
 
-class MafiaPlayer extends Rooms.RoomGamePlayer {
-	game: Mafia;
+class MafiaPlayer extends Rooms.RoomGamePlayer<Mafia> {
 	safeName: string;
 	role: MafiaRole | null;
 	voting: ID;
@@ -184,7 +189,6 @@ class MafiaPlayer extends Rooms.RoomGamePlayer {
 	idle: null | boolean;
 	constructor(user: User, game: Mafia) {
 		super(user, game);
-		this.game = game;
 		this.safeName = Utils.escapeHTML(this.name);
 		this.role = null;
 		this.voting = '';
@@ -224,14 +228,13 @@ class MafiaPlayer extends Rooms.RoomGamePlayer {
 	}
 }
 
-class Mafia extends Rooms.RoomGame {
+class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 	started: boolean;
 	theme: MafiaDataTheme | null;
 	hostid: ID;
 	host: string;
 	cohostids: ID[];
 	cohosts: string[];
-	playerTable: {[userid: string]: MafiaPlayer};
 	dead: {[userid: string]: MafiaPlayer};
 
 	subs: ID[];
@@ -247,6 +250,8 @@ class Mafia extends Rooms.RoomGame {
 	hasPlurality: ID | null;
 
 	enableNL: boolean;
+	votelock: boolean;
+    canVote:{[userid: string]: boolean};
 	forceVote: boolean;
 	closedSetup: boolean;
 	noReveal: boolean;
@@ -282,7 +287,6 @@ class Mafia extends Rooms.RoomGame {
 		this.cohostids = [];
 		this.cohosts = [];
 
-		this.playerTable = Object.create(null);
 		this.dead = Object.create(null);
 		this.subs = [];
 		this.autoSub = true;
@@ -297,6 +301,8 @@ class Mafia extends Rooms.RoomGame {
 		this.hasPlurality = null;
 
 		this.enableNL = true;
+		this.votelock = false;
+        this.canVote = Object.create(null);
 		this.forceVote = false;
 		this.closedSetup = false;
 		this.noReveal = true;
@@ -691,6 +697,13 @@ class Mafia extends Rooms.RoomGame {
 	vote(userid: ID, target: ID) {
 		if (this.phase !== 'day') return this.sendUser(userid, `|error|You can only vote during the day.`);
 		let player = this.playerTable[userid];
+		if (this.votelock) {
+			if(!this.canVote[userid]) {
+				return this.sendUser(userid, `|error|You cannot switch your vote,because votes are locked`)
+		} else {
+			this.canVote[userid] = false;
+			}
+		}	
 		if (!player && this.dead[userid] && this.dead[userid].restless) player = this.dead[userid];
 		if (!player) return;
 		if (!(target in this.playerTable) && target !== 'novote') {
@@ -760,6 +773,7 @@ class Mafia extends Rooms.RoomGame {
 		let player = this.playerTable[userid];
 
 		// autoselfvote blocking doesn't apply to restless spirits
+		if (this.votelock) return this.sendUser(userid, `|error|You cannot unvote,because votes are locked`)
 		if (player && this.forceVote && !force) {
 			return this.sendUser(userid, `|error|You can only shift your vote, not unvote.`);
 		}
@@ -1586,6 +1600,15 @@ class Mafia extends Rooms.RoomGame {
 		if (!setting) this.clearVotes('novote');
 		this.updatePlayers();
 	}
+	setVotelock(user: User, setting: boolean) {
+        if ((this.votelock) === setting) {
+		return user.sendTo(this.room, `|error|Votes are already ${setting ? 'set to lock' : 'set to not lock'}.`);
+		}
+        this.votelock = setting;
+		this.clearVotes();
+        this.sendDeclare(`Votes are cleared and ${setting ? 'set to lock' : 'set to not lock'}.`);
+        this.updatePlayers()
+    }
 	clearVotes(target = '') {
 		if (target) delete this.votes[target];
 
@@ -1607,6 +1630,9 @@ class Mafia extends Rooms.RoomGame {
 			if (player.restless && (!target || player.voting === target)) player.voting = '';
 		}
 		this.hasPlurality = null;
+		for (const player in this.playerTable){
+			this.canVote[player] = true;
+		}
 	}
 
 	onChatMessage(message: string, user: User) {
@@ -2827,6 +2853,25 @@ export const commands: Chat.ChatCommands = {
 			`/mafia shifthammer [hammer] - sets the hammer count to [hammer] without resetting votes`,
 			`/mafia resethammer - sets the hammer to the default, resetting votes`,
 		],
+		enablevl: 'vlenable',
+        enablevotelock: 'vlenable',
+        disablevl: 'vlenable',
+        disablevotelock: 'vlenable',
+
+        vlenable(target,room, user, connection, cmd) {
+            room = this.requireRoom();
+            const game = this.requireGame(Mafia);
+            if (game.hostid !== user.id && !game.cohostids.includes(user.id)) this.checkCan('mute', null, room);
+            if(cmd == 'enablevotelock' || cmd == 'enablevl') {
+                game.setVotelock(user, true)
+            } else {
+                game.setVotelock(user, false)
+            }
+            game.logAction(user, `locked votes`);
+        },
+        votelockhelp: [
+            `/mafia [enablevl|disablevl] - Allows or disallows players to change their vote. Requires host % @ # &`,
+        ],
 
 		enablenv: 'enablenl',
 		disablenv: 'enablenl',
@@ -3816,6 +3861,7 @@ export const commands: Chat.ChatCommands = {
 			`/mafia reveal [on|off] - Sets if roles reveal on death or not. Requires host % @ # &`,
 			`/mafia selfvote [on|hammer|off] - Allows players to self vote either at hammer or anytime. Requires host % @ # &`,
 			`/mafia [enablenl|disablenl] - Allows or disallows players abstain from voting. Requires host % @ # &`,
+			`/mafia [enablevl|disablevl] - Allows or disallows players to change their vote. Requires host % @ # &`,
 			`/mafia forcevote [yes/no] - Forces players' votes onto themselves, and prevents unvoting. Requires host % @ # &`,
 			`/mafia setroles [comma seperated roles] - Set the roles for a game of mafia. You need to provide one role per player. Requires host % @ # &`,
 			`/mafia forcesetroles [comma seperated roles] - Forcibly set the roles for a game of mafia. No role PM information or alignment will be set. Requires host % @ # &`,
