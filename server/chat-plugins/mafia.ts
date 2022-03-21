@@ -699,7 +699,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 		let player = this.playerTable[userid];
 		if (this.votelock) {
 			if (!this.canVote[userid]) {
-				return this.sendUser(userid, `|error|You cannot switch your vote,because votes are locked`);
+				return this.sendUser(userid, `|error|You cannot switch your vote because votes are locked.`);
 			} else {
 				this.canVote[userid] = false;
 			}
@@ -773,7 +773,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 		let player = this.playerTable[userid];
 
 		// autoselfvote blocking doesn't apply to restless spirits
-		if (this.votelock) return this.sendUser(userid, `|error|You cannot unvote,because votes are locked`);
+		if (this.votelock) return this.sendUser(userid, `|error|You cannot unvote because votes are locked.`);
 		if (player && this.forceVote && !force) {
 			return this.sendUser(userid, `|error|You can only shift your vote, not unvote.`);
 		}
@@ -1602,11 +1602,11 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 	}
 	setVotelock(user: User, setting: boolean) {
 		if ((this.votelock) === setting) {
-			return user.sendTo(this.room, `|error|Votes are already ${setting ? 'set to lock' : 'set to not lock'}.`);
+			return user.sendTo(this.room, `|error|Votes are already ${setting ? 'locked' : 'unlocked'}.`);
 		}
 		this.votelock = setting;
 		this.clearVotes();
-		this.sendDeclare(`Votes are cleared and ${setting ? 'set to lock' : 'set to not lock'}.`);
+		this.sendDeclare(`Votes are now ${setting ? 'locked' : 'unlocked'}. Votes have been cleared.`);
 		this.updatePlayers();
 	}
 	clearVotes(target = '') {
@@ -2510,29 +2510,11 @@ export const commands: Chat.ChatCommands = {
 			if (!target) return this.parse('/help mafia kill');
 			const player = game.playerTable[toID(target)];
 			const dead = game.dead[toID(target)];
-			let repeat;
-			if (dead) {
-				switch (cmd) {
-				case 'treestump':
-					repeat = dead.treestump && !dead.restless;
-					break;
-				case 'spirit':
-					repeat = !dead.treestump && dead.restless;
-					break;
-				case 'spiritstump':
-					repeat = dead.treestump && dead.restless;
-					break;
-				case 'kill': case 'kick':
-					repeat = !dead.treestump && !dead.restless;
-					break;
-				}
-			}
-			if (dead && repeat) return this.errorReply(`${dead.safeName} has already been ${cmd}ed.`);
 			if (player || dead) {
 				game.eliminate(toID(target), cmd);
 				game.logAction(user, `${cmd}ed ${(dead || player).safeName}`);
 			} else {
-				this.errorReply(`${target.trim()} is not a player.`);
+				this.errorReply(`${target.trim()} is not a living player.`);
 			}
 		},
 		killhelp: [
