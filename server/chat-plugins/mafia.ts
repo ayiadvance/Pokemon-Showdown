@@ -251,7 +251,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 
 	enableNL: boolean;
 	votelock: boolean;
-    canVote:{[userid: string]: boolean};
+	canVote: {[userid: string]: boolean};
 	forceVote: boolean;
 	closedSetup: boolean;
 	noReveal: boolean;
@@ -302,7 +302,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 
 		this.enableNL = true;
 		this.votelock = false;
-        this.canVote = Object.create(null);
+		this.canVote = Object.create(null);
 		this.forceVote = false;
 		this.closedSetup = false;
 		this.noReveal = true;
@@ -698,12 +698,12 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 		if (this.phase !== 'day') return this.sendUser(userid, `|error|You can only vote during the day.`);
 		let player = this.playerTable[userid];
 		if (this.votelock) {
-			if(!this.canVote[userid]) {
-				return this.sendUser(userid, `|error|You cannot switch your vote,because votes are locked`)
-		} else {
-			this.canVote[userid] = false;
+			if (!this.canVote[userid]) {
+				return this.sendUser(userid, `|error|You cannot switch your vote,because votes are locked`);
+			} else {
+				this.canVote[userid] = false;
 			}
-		}	
+		}
 		if (!player && this.dead[userid] && this.dead[userid].restless) player = this.dead[userid];
 		if (!player) return;
 		if (!(target in this.playerTable) && target !== 'novote') {
@@ -773,7 +773,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 		let player = this.playerTable[userid];
 
 		// autoselfvote blocking doesn't apply to restless spirits
-		if (this.votelock) return this.sendUser(userid, `|error|You cannot unvote,because votes are locked`)
+		if (this.votelock) return this.sendUser(userid, `|error|You cannot unvote,because votes are locked`);
 		if (player && this.forceVote && !force) {
 			return this.sendUser(userid, `|error|You can only shift your vote, not unvote.`);
 		}
@@ -1601,14 +1601,14 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 		this.updatePlayers();
 	}
 	setVotelock(user: User, setting: boolean) {
-        if ((this.votelock) === setting) {
-		return user.sendTo(this.room, `|error|Votes are already ${setting ? 'set to lock' : 'set to not lock'}.`);
+		if ((this.votelock) === setting) {
+			return user.sendTo(this.room, `|error|Votes are already ${setting ? 'set to lock' : 'set to not lock'}.`);
 		}
-        this.votelock = setting;
+		this.votelock = setting;
 		this.clearVotes();
-        this.sendDeclare(`Votes are cleared and ${setting ? 'set to lock' : 'set to not lock'}.`);
-        this.updatePlayers()
-    }
+		this.sendDeclare(`Votes are cleared and ${setting ? 'set to lock' : 'set to not lock'}.`);
+		this.updatePlayers();
+	}
 	clearVotes(target = '') {
 		if (target) delete this.votes[target];
 
@@ -1630,7 +1630,7 @@ class Mafia extends Rooms.RoomGame<MafiaPlayer> {
 			if (player.restless && (!target || player.voting === target)) player.voting = '';
 		}
 		this.hasPlurality = null;
-		for (const player in this.playerTable){
+		for (const player in this.playerTable) {
 			this.canVote[player] = true;
 		}
 	}
@@ -2853,25 +2853,25 @@ export const commands: Chat.ChatCommands = {
 			`/mafia shifthammer [hammer] - sets the hammer count to [hammer] without resetting votes`,
 			`/mafia resethammer - sets the hammer to the default, resetting votes`,
 		],
-		enablevl: 'vlenable',
-        enablevotelock: 'vlenable',
-        disablevl: 'vlenable',
-        disablevotelock: 'vlenable',
 
-        vlenable(target,room, user, connection, cmd) {
-            room = this.requireRoom();
-            const game = this.requireGame(Mafia);
-            if (game.hostid !== user.id && !game.cohostids.includes(user.id)) this.checkCan('mute', null, room);
-            if(cmd == 'enablevotelock' || cmd == 'enablevl') {
-                game.setVotelock(user, true)
-            } else {
-                game.setVotelock(user, false)
-            }
-            game.logAction(user, `locked votes`);
-        },
-        votelockhelp: [
-            `/mafia [enablevl|disablevl] - Allows or disallows players to change their vote. Requires host % @ # &`,
-        ],
+		enablevl: 'vlenable',
+		enablevotelock: 'vlenable',
+		disablevl: 'vlenable',
+		disablevotelock: 'vlenable',
+		vlenable(target, room, user, connection, cmd) {
+			room = this.requireRoom();
+			const game = this.requireGame(Mafia);
+			if (game.hostid !== user.id && !game.cohostids.includes(user.id)) this.checkCan('mute', null, room);
+			if (cmd === 'enablevotelock' || cmd === 'enablevl') {
+				game.setVotelock(user, true);
+			} else {
+				game.setVotelock(user, false);
+			}
+			game.logAction(user, `locked votes`);
+		},
+		votelockhelp: [
+			`/mafia [enablevl|disablevl] - Allows or disallows players to change their vote. Requires host % @ # &`,
+		],
 
 		enablenv: 'enablenl',
 		disablenv: 'enablenl',
